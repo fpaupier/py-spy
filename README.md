@@ -1,7 +1,5 @@
 py-spy: Sampling profiler for Python programs
 =====
-[![Build Status](https://github.com/benfred/py-spy/workflows/Build/badge.svg?branch=master)](https://github.com/benfred/py-spy/actions?query=branch%3Amaster)
-[![FreeBSD Build Status](https://api.cirrus-ci.com/github/benfred/py-spy.svg)](https://cirrus-ci.com/github/benfred/py-spy)
 
 py-spy is a sampling profiler for Python programs. It lets you visualize what your Python
 program is spending time on without restarting the program or modifying the code in any way.
@@ -19,10 +17,8 @@ Prebuilt binary wheels can be installed from PyPI with:
 pip install py-spy
 ```
 
-You can also download prebuilt binaries from the [GitHub Releases
-Page](https://github.com/benfred/py-spy/releases). This includes binaries for ARM and FreeBSD,
-which can't be installed using pip. If you're a Rust user, py-spy can also be installed with: ```cargo install py-spy```. On Arch Linux, [py-spy is in AUR](https://aur.archlinux.org/packages/py-spy/) and can be
-installed with ```yay -S py-spy```.
+You can also download prebuilt binaries from the _Releases Page_.
+This includes binaries for ARM and FreeBSD, which can't be installed using pip. 
 
 ## Usage
 
@@ -33,7 +29,7 @@ or the command line of the python program you want to run. py-spy has three subc
 ### record
 
 py-spy supports recording profiles to a file using the ```record``` command. For example, you can
-generate a [flame graph](http://www.brendangregg.com/flamegraphs.html) of your python process by
+generate a _flame graph_ of your python process by
 going:
 
 ``` bash
@@ -55,7 +51,7 @@ showing thread-ids, profiling subprocesses and more.
 ### top
 
 Top shows a live view of what functions are taking the most time in your python program, similar
-to the Unix [top](https://linux.die.net/man/1/top) command. Running py-spy with:
+to the Unix `top` command. Running py-spy with:
 
 ``` bash
 py-spy top --pid 12345
@@ -100,17 +96,14 @@ a noticeable impact on performance.
 ### How does py-spy work?
 
 py-spy works by directly reading the memory of the python program using the
-[process_vm_readv](http://man7.org/linux/man-pages/man2/process_vm_readv.2.html) system call on Linux,
-the [vm_read](https://developer.apple.com/documentation/kernel/1585350-vm_read?language=objc) call on OSX
-or the [ReadProcessMemory](https://msdn.microsoft.com/en-us/library/windows/desktop/ms680553(v=vs.85).aspx) call
-on Windows.
+_process_vm_readv_ system call on Linux, the _vm_read_ call on OSX  or the _ReadProcessMemory_ call on Windows.
 
 Figuring out the call stack of the Python program is done by looking at the global PyInterpreterState variable
 to get all the Python threads running in the interpreter, and then iterating over each PyFrameObject in each thread
-to get the call stack. Since the Python ABI changes between versions, we use rust's [bindgen](https://github.com/rust-lang-nursery/rust-bindgen) to generate different rust structures for each Python interpreter
+to get the call stack. Since the Python ABI changes between versions, we use rust's _bindgen_ to generate different rust structures for each Python interpreter
 class we care about and use these generated structs to figure out the memory layout in the Python program.
 
-Getting the memory address of the Python Interpreter can be a little tricky due to [Address Space Layout Randomization](https://en.wikipedia.org/wiki/Address_space_layout_randomization). If the target python interpreter ships
+Getting the memory address of the Python Interpreter can be a little tricky due to _Address Space Layout Randomization_. If the target python interpreter ships
 with symbols it is pretty easy to figure out the memory address of the interpreter by dereferencing the
 ```interp_head```  or ```_PyRuntime``` variables depending on the Python version. However, many Python
 versions are shipped with either stripped binaries or shipped without the corresponding PDB symbol files on Windows. In
@@ -124,8 +117,7 @@ Yes! py-spy supports profiling native python extensions written in languages lik
 on x86_64 Linux and Windows. You can enable this mode by passing ```--native``` on the
 command line. For best results, you should compile your Python extension with symbols. Also worth
 noting for Cython programs is that py-spy needs the generated C or C++ file in order to return line
-numbers of the original .pyx file.  Read the [blog post](https://www.benfrederickson.com/profiling-native-python-extensions-with-py-spy/)
-for more information.
+numbers of the original .pyx file. 
 
 ### How can I profile subprocesses?
 
@@ -147,17 +139,14 @@ On Linux the default configuration is to require root permissions when attaching
 For py-spy this means you can profile without root access by getting py-spy to create the process
 (```py-spy record  -- python myprogram.py```) but attaching to an existing process by specifying a
 PID will usually require root (```sudo py-spy record --pid 123456```).
-You can remove this restriction on Linux by setting the [ptrace_scope sysctl variable](https://wiki.ubuntu.com/SecurityTeam/Roadmap/KernelHardening#ptrace_Protection).
+You can remove this restriction on Linux by setting the ptrace_scope sysctl variable.
 
 ### How do you detect if a thread is idle or not?
 
 py-spy attempts to only include stack traces from threads that are actively running code, and exclude threads that
 are sleeping or otherwise idle. When possible, py-spy attempts to get this thread activity information
 from the OS: by reading in  ```/proc/PID/stat``` on Linux, by using the mach
-[thread_basic_info](https://opensource.apple.com/source/xnu/xnu-792/osfmk/mach/thread_info.h.auto.html)
-call on OSX, and by looking if the current SysCall is [known to be
-idle](https://github.com/benfred/py-spy/blob/8326c6dbc6241d60125dfd4c01b70fed8b8b8138/remoteprocess/src/windows/mod.rs#L212-L229)
-on Windows.
+thread_basic_info call on OSX, and by looking if the current SysCall is known to be  idle on Windows.
 
 There are some limitations with this approach though that may cause idle threads to still be
 marked as active. First off, we have to get this thread activity information before pausing the
@@ -183,30 +172,21 @@ cause resolving which thread holds on to the GIL to fail. Current GIL usage is a
 ```top``` view as %GIL.
 
 Passing the ```--gil``` flag will only include traces for threads that are holding on to the
-[Global Interpreter Lock](https://wiki.python.org/moin/GlobalInterpreterLock). In some cases this
+Global Interpreter Lock. In some cases this
 might be a more accurate view of how your python program is spending its time, though you should
 be aware that this will miss activity in extensions that release the GIL while still active.
 
-### Why am I having issues profiling /usr/bin/python on OSX?
-
-OSX has a feature called [System Integrity Protection](https://en.wikipedia.org/wiki/System_Integrity_Protection) that prevents even the root user from reading memory from any binary located in /usr/bin. Unfortunately, this includes the python interpreter that ships with OSX.
-
-There are a couple of different ways to deal with this:
- * You can install a different Python distribution. The built-in Python [will be removed](https://developer.apple.com/documentation/macos_release_notes/macos_catalina_10_15_release_notes) in a future OSX, and you probably want to migrate away from Python 2 anyways =).
- * You can use [virtualenv](https://virtualenv.pypa.io/en/stable/) to run the system python in an environment where SIP doesn't apply.
- * You can [disable System Integrity Protection](https://www.macworld.co.uk/how-to/mac/how-turn-off-mac-os-x-system-integrity-protection-rootless-3638975/).
 
 ### How do I run py-spy in Docker?
 
 Running py-spy inside of a docker container will also usually bring up a permissions denied error even when running as root.
 
 This error is caused by docker restricting the process_vm_readv system call we are using. This can
-be overridden by setting
-[```--cap-add SYS_PTRACE```](https://docs.docker.com/engine/security/seccomp/) when starting the docker container.
+be overridden by setting `--cap-add SYS_PTRACE` when starting the docker container.
 
 Alternatively you can edit the docker-compose yaml file
 
-```
+```docker-compose
 your_service:
    cap_add:
      - SYS_PTRACE
@@ -233,14 +213,6 @@ securityContext:
 More details on this here: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container
 Note that this will remove the existing pods and create those again.
 
-### How do I install py-spy on Alpine Linux?
-
-Alpine python opts out of the `manylinux` wheels: [pypa/pip#3969 (comment)](https://github.com/pypa/pip/issues/3969#issuecomment-247381915).
-You can override this behaviour to use pip to install py-spy on Alpine by going:
-
-    echo 'manylinux1_compatible = True' > /usr/local/lib/python3.7/site-packages/_manylinux.py
-
-Alternatively you can download a musl binary from the [GitHub releases page](https://github.com/benfred/py-spy/releases).
 
 ### How can I avoid pausing the Python program?
 
@@ -253,35 +225,8 @@ Since the calls we use to read memory from are not atomic, and we have to issue 
 means that occasionally we get errors when sampling. This can show up as an increased error rate when sampling, or as
 partial stack frames being included in the output.
 
-### How are you distributing Rust executable binaries over PyPI?
-
-Ok, so no-one has ever actually asked me this - but I wanted to share since it's a pretty terrible hack
-that might be useful to other people.
-
-I really wanted to distribute this package over PyPI, since installing with pip will make this much easier
-for most Python programmers to get installed on their system. Unfortunately, [installing executables as python
-scripts isn't something that setuptools supports](https://github.com/pypa/setuptools/issues/210).
-
-To get around this I'm using setuptools_rust package to build the py-spy
-binary, and then overriding the [distutils install command](https://github.com/benfred/py-spy/blob/772f24086c30521b4d4af5065aa09da4f9d559ae/setup.py#L44-L83)
-to copy the built binary into the python scripts folder. By doing this with prebuilt wheels for supported
-platforms means that we can install py-spy with pip, and not require a Rust compiler on the machine that
-this is being installed onto.
 
 ### Does py-spy support 32-bit Windows? Integrate with PyPy? Work with USC2 versions of Python2?
 
 Not yet =).
 
-If there are features you'd like to see in py-spy either thumb up the [appropriate
-issue](https://github.com/benfred/py-spy/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc) or create a new one that describes what functionality is missing. 
-
-
-## Credits
-
-py-spy is heavily inspired by [Julia Evans](https://github.com/jvns/) excellent work on [rbspy](http://github.com/rbspy/rbspy).
-In particular, the code to generate flamegraph and speedscope files is taken directly from rbspy, and this project uses the
-[read-process-memory](https://github.com/luser/read-process-memory) and [proc-maps](https://github.com/benfred/proc-maps) crates that were spun off from rbspy.
-
-## License
-
-py-spy is released under the MIT License, see the [LICENSE](https://github.com/benfred/py-spy/blob/master/LICENSE) file for the full text.
